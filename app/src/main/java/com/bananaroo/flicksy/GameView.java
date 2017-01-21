@@ -17,9 +17,6 @@ import android.view.SurfaceView;
 import java.util.LinkedList;
 import java.util.Random;
 
-/**
- * Created by kkampfen on 11/29/2015.
- */
 public class GameView extends SurfaceView implements Runnable {
     Thread viewthread = null;
     Paint drawPaint = new Paint();
@@ -27,10 +24,10 @@ public class GameView extends SurfaceView implements Runnable {
     boolean running = true;
     int blueBackgroundColor = Color.argb(255, 30, 130, 180);
     int redBackgroundColor = Color.argb(255, 255, 20, 20);
-    LinkedList<Shaple> shaple = new LinkedList<Shaple>();
-    LinkedList<Flicksy> flicksy = new LinkedList<Flicksy>();
-    Shaple tempShaple;
-    Flicksy tempFlicksy;
+    LinkedList<Shaple> shaple = new LinkedList<>();
+    LinkedList<Flicksy> flicksy = new LinkedList<>();
+    Shaple currentShaple, newShaple;
+    Flicksy currentFlicksy, newFlicksy;
     private long shapleTimeStart = System.currentTimeMillis();
     int shapleDelay = 2000;
     int shapleCount = 0;
@@ -88,18 +85,19 @@ public class GameView extends SurfaceView implements Runnable {
         // Check that a Shaple exists in the LinkedList, then iterate through
         if (shaple != null) {
             for (int i = 0; i < shaple.size(); i++) {
+                currentShaple = shaple.get(i);
 
                 // Check Shaple health and remove from LinkedList if dead
-                if (shaple.get(i).health < 1) {
-                    removeShaple(shaple.get(i));
+                if (currentShaple.health < 1) {
+                    removeShaple(currentShaple);
                     score++;
                 }
 
                 // Check Shaple position; if bottom of screen player loses health
-                else if (shaple.get(i).yPosition > (canvas.getHeight() - shaple.get(i).frameHeight)) {
+                else if (currentShaple.yPosition > (canvas.getHeight() - currentShaple.frameHeight)) {
                     playerHealth--;
                     canvas.drawColor(redBackgroundColor);
-                    removeShaple(shaple.get(i));
+                    removeShaple(currentShaple);
                     if (playerHealth > 0) {
                         sounds.play(sndWilhelm, 1, 1, 0, 0, 1);
                     }
@@ -108,12 +106,12 @@ public class GameView extends SurfaceView implements Runnable {
                 // If Shaple is alive and not at bottom of screen, process movement operations
                 else {
                     // Movement operations
-                    shaple.get(i).move(canvas);
+                    currentShaple.move(canvas);
 
                     // Set up current frame and position to draw to screen
-                    canvas.drawBitmap(shaple.get(i).bitmap,
-                            shaple.get(i).frameToDraw,
-                            shaple.get(i).whereToDraw,
+                    canvas.drawBitmap(currentShaple.bitmap,
+                            currentShaple.frameToDraw,
+                            currentShaple.whereToDraw,
                             drawPaint);
                 }
             }
@@ -128,46 +126,49 @@ public class GameView extends SurfaceView implements Runnable {
         // Check that a Flicksy exists in the LinkedList, then iterate through
         if (flicksy != null) {
             for (int i = 0; i < flicksy.size(); i++) {
+                currentFlicksy = flicksy.get(i);
 
                 // Movement operations
-                flicksy.get(i).move(canvas);
+                currentFlicksy.move(canvas);
 
                 // Set up current frame and position to draw to screen
-                canvas.drawBitmap(flicksy.get(i).bitmap,
-                        flicksy.get(i).frameToDraw,
-                        flicksy.get(i).whereToDraw,
+                canvas.drawBitmap(currentFlicksy.bitmap,
+                        currentFlicksy.frameToDraw,
+                        currentFlicksy.whereToDraw,
                         drawPaint);
 
                // Check if bitmap has been flicked
-                if (flicksy.get(i).flicked) {
+                if (currentFlicksy.flicked) {
 
                     // Spawn Flicksy to replace flicked
-                    if (flicksy.get(i).spawn) {
-                        if (flicksy.get(i) instanceof Flicksy.FlicksyLeft) {
+                    if (currentFlicksy.spawn) {
+                        if (currentFlicksy instanceof Flicksy.FlicksyLeft) {
                             spawnNewFlicksyLeft(canvas);
-                            flicksy.get(i).spawn = false;
+                            currentFlicksy.spawn = false;
                         } else {
                             spawnNewFlicksyRight(canvas);
-                            flicksy.get(i).spawn = false;
+                            currentFlicksy.spawn = false;
                         }
                     }
 
                     // Check if Flicksy has hit a Shaple
                     for (int j = 0; j < shaple.size(); j++) {
-                        if (shaple.get(j).yPosition > -shaple.get(j).frameHeight / 2) {
-                            if (RectF.intersects(flicksy.get(i).whereToDraw, shaple.get(j).whereToDraw)) {
+                        currentShaple = shaple.get(j);
+
+                        if (currentShaple.yPosition > -currentShaple.frameHeight / 2) {
+                            if (RectF.intersects(currentFlicksy.whereToDraw, currentShaple.whereToDraw)) {
                                 sounds.play(sndHit, 1, 1, 0, 0, 1);
-                                shaple.get(j).health--;
-                                canvas.drawBitmap(hitBitmap, flicksy.get(i).whereToDraw.left, flicksy.get(i).whereToDraw.top, drawPaint);
-                                removeFlicksy(flicksy.get(i));
+                                currentShaple.health--;
+                                canvas.drawBitmap(hitBitmap, currentFlicksy.whereToDraw.left, currentFlicksy.whereToDraw.top, drawPaint);
+                                removeFlicksy(currentFlicksy);
                                 j = shaple.size();
                             }
                         }
                     }
 
                     // Remove Flicksy if off screen
-                    if (flicksy.get(i).yPosition < -120) {
-                        removeFlicksy(flicksy.get(i));
+                    if (currentFlicksy.yPosition < -120) {
+                        removeFlicksy(currentFlicksy);
                     }
                 }
             }
@@ -193,29 +194,29 @@ public class GameView extends SurfaceView implements Runnable {
             }
 
             if (randomShaple == 1) {
-                tempShaple = new Shaple().new ShapleOval(getContext(), canvas);
-                tempShaple.bitmap = Bitmap.createScaledBitmap(
-                        tempShaple.bitmap,
-                        tempShaple.frameWidth * frameCount,
-                        tempShaple.frameHeight,
+                newShaple = new Shaple().new ShapleOval(getContext(), canvas);
+                newShaple.bitmap = Bitmap.createScaledBitmap(
+                        newShaple.bitmap,
+                        newShaple.frameWidth * frameCount,
+                        newShaple.frameHeight,
                         false);
             } else if (randomShaple == 2) {
-                tempShaple = new Shaple().new ShapleTri(getContext(), canvas);
-                tempShaple.bitmap = Bitmap.createScaledBitmap(
-                        tempShaple.bitmap,
-                        tempShaple.frameWidth * frameCount,
-                        tempShaple.frameHeight,
+                newShaple = new Shaple().new ShapleTri(getContext(), canvas);
+                newShaple.bitmap = Bitmap.createScaledBitmap(
+                        newShaple.bitmap,
+                        newShaple.frameWidth * frameCount,
+                        newShaple.frameHeight,
                         false);
             } else if (randomShaple == 3) {
-                tempShaple = new Shaple().new ShapleRect(getContext(), canvas);
-                tempShaple.bitmap = Bitmap.createScaledBitmap(
-                        tempShaple.bitmap,
-                        tempShaple.frameWidth * frameCount,
-                        tempShaple.frameHeight,
+                newShaple = new Shaple().new ShapleRect(getContext(), canvas);
+                newShaple.bitmap = Bitmap.createScaledBitmap(
+                        newShaple.bitmap,
+                        newShaple.frameWidth * frameCount,
+                        newShaple.frameHeight,
                         false);
             }
 
-            addShaple(tempShaple);
+            addShaple(newShaple);
 
             shapleTimeStart = System.currentTimeMillis();
 
@@ -232,12 +233,14 @@ public class GameView extends SurfaceView implements Runnable {
     public void checkTouch(RectF touchRect, float flickedXSpeed, float flickedYSpeed) {
         if (flicksy != null) {
             for (int i = 0; i < flicksy.size(); i++) {
-                if (!flicksy.get(i).flicked) {
-                    if (RectF.intersects(flicksy.get(i).whereToDraw, touchRect)) {
-                        flicksy.get(i).flicked = true;
-                        flicksy.get(i).spawn = true;
-                        flicksy.get(i).xSpeed = flickedXSpeed;
-                        flicksy.get(i).ySpeed = flickedYSpeed;
+                currentFlicksy = flicksy.get(i);
+
+                if (!currentFlicksy.flicked) {
+                    if (RectF.intersects(currentFlicksy.whereToDraw, touchRect)) {
+                        currentFlicksy.flicked = true;
+                        currentFlicksy.spawn = true;
+                        currentFlicksy.xSpeed = flickedXSpeed;
+                        currentFlicksy.ySpeed = flickedYSpeed;
                         sounds.play(sndFlick, 1, 1, 0, 0, 1);
                     }
                 }
@@ -289,23 +292,23 @@ public class GameView extends SurfaceView implements Runnable {
     }
 
     public void spawnNewFlicksyLeft(Canvas canvas) {
-        tempFlicksy = new Flicksy().new FlicksyLeft(getContext(), canvas);
-        tempFlicksy.bitmap = Bitmap.createScaledBitmap(
-                tempFlicksy.bitmap,
-                tempFlicksy.frameWidth * frameCount,
-                tempFlicksy.frameHeight,
+        newFlicksy = new Flicksy().new FlicksyLeft(getContext(), canvas);
+        newFlicksy.bitmap = Bitmap.createScaledBitmap(
+                newFlicksy.bitmap,
+                newFlicksy.frameWidth * frameCount,
+                newFlicksy.frameHeight,
                 false);
-        addFlicksy(tempFlicksy);
+        addFlicksy(newFlicksy);
     }
 
     public void spawnNewFlicksyRight(Canvas canvas) {
-        tempFlicksy = new Flicksy().new FlicksyRight(getContext(), canvas);
-        tempFlicksy.bitmap = Bitmap.createScaledBitmap(
-                tempFlicksy.bitmap,
-                tempFlicksy.frameWidth * frameCount,
-                tempFlicksy.frameHeight,
+        newFlicksy = new Flicksy().new FlicksyRight(getContext(), canvas);
+        newFlicksy.bitmap = Bitmap.createScaledBitmap(
+                newFlicksy.bitmap,
+                newFlicksy.frameWidth * frameCount,
+                newFlicksy.frameHeight,
                 false);
-        addFlicksy(tempFlicksy);
+        addFlicksy(newFlicksy);
     }
 
     public void addShaple(Shaple e) {
